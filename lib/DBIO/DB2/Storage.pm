@@ -12,6 +12,16 @@ __PACKAGE__->register_driver('DB2' => __PACKAGE__);
 __PACKAGE__->datetime_parser_type('DateTime::Format::DB2');
 __PACKAGE__->sql_quote_char ('"');
 
+=head1 DESCRIPTION
+
+Storage driver for IBM DB2 databases. Handles autoincrement column retrieval
+via C<IDENTITY_VAL_LOCAL()>, selects the appropriate SQL limit dialect
+(C<RowNumberOver> for DB2 5.4 and later, C<FetchFirst> for older versions),
+queries the server name separator from L<DBI>, and sets the datetime parser
+to L<DateTime::Format::DB2>.
+
+=cut
+
 # lazy-default kind of thing
 sub sql_name_sep {
   my $self = shift;
@@ -24,6 +34,13 @@ sub sql_name_sep {
 
   return $v;
 }
+
+=method sql_name_sep
+
+Returns the name separator character used by this DB2 server (e.g. C<.>),
+queried from the server via C<SQL_QUALIFIER_NAME_SEPARATOR> on first access.
+
+=cut
 
 sub sql_limit_dialect {
   my $self = shift;
@@ -40,6 +57,14 @@ sub sql_limit_dialect {
 
   return $v;
 }
+
+=method sql_limit_dialect
+
+Returns C<RowNumberOver> for DB2 version 5.4 and above, or C<FetchFirst>
+for older versions. The value is detected automatically from the server
+version on first access.
+
+=cut
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
@@ -61,12 +86,15 @@ sub _dbh_last_insert_id {
   return @res ? $res[0] : undef;
 }
 
-=head1 DESCRIPTION
+=head1 SEE ALSO
 
-This class implements autoincrements for DB2, sets the limit dialect to
-RowNumberOver over FetchFirst depending on the availability of support for
-RowNumberOver, queries the server name_sep from L<DBI> and sets the L<DateTime>
-parser to L<DateTime::Format::DB2>.
+=over
+
+=item * L<DBIO::DB2> - DB2 schema component
+
+=item * L<DBIO::Storage::DBI> - Base DBI storage class
+
+=back
 
 =cut
 
