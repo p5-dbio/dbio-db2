@@ -5,8 +5,7 @@ use Test::More;
 use Test::Exception;
 use Try::Tiny;
 use DBIO::Optional::Dependencies ();
-use lib qw(../dbio/lib t/lib);
-use DBIOTest;
+use DBIO::Test;
 
 plan skip_all => 'Test needs ' . DBIO::Optional::Dependencies->req_missing_for ('test_rdbms_db2')
   unless DBIO::Optional::Dependencies->req_ok_for ('test_rdbms_db2');
@@ -18,7 +17,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBIOTEST_DB2_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBIOTEST_DB2_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-my $schema = DBIOTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBIO::Test::Schema->connect($dsn, $user, $pass);
 
 my $name_sep = $schema->storage->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR');
 
@@ -96,7 +95,7 @@ is( $lim->all, 2, 'Number of ->all objects matches count' );
     $schema->txn_do (sub {
       isa_ok (
         $schema->resultset('Artist')->find({artistid => 1}, {for => 'update', rows => 1}),
-        'DBIOTest::Schema::Artist',
+        'DBIO::Test::Schema::Artist',
       );
     });
   } 'Limited FOR UPDATE select works';
