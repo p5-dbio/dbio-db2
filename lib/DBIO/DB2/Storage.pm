@@ -42,29 +42,8 @@ queried from the server via C<SQL_QUALIFIER_NAME_SEPARATOR> on first access.
 
 =cut
 
-sub sql_limit_dialect {
-  my $self = shift;
-
-  my $v = $self->next::method(@_);
-
-  if (! defined $v and ! @_) {
-    $v = $self->next::method(
-      ($self->_server_info->{normalized_dbms_version}||0) >= 5.004
-        ? 'RowNumberOver'
-        : 'FetchFirst'
-    );
-  }
-
-  return $v;
-}
-
-=method sql_limit_dialect
-
-Returns C<RowNumberOver> for DB2 version 5.4 and above, or C<FetchFirst>
-for older versions. The value is detected automatically from the server
-version on first access.
-
-=cut
+# TODO: DB2 needs a SQLMaker with apply_limit that uses RowNumberOver
+# (>= 5.004) or FetchFirst (older) based on server version.
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
