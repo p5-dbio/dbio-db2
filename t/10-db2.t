@@ -10,11 +10,11 @@ use DBIO::Test;
 plan skip_all => 'Test needs ' . DBIO::Optional::Dependencies->req_missing_for ('test_rdbms_db2')
   unless DBIO::Optional::Dependencies->req_ok_for ('test_rdbms_db2');
 
-my ($dsn, $user, $pass) = @ENV{map { "DBIOTEST_DB2_${_}" } qw/DSN USER PASS/};
+my ($dsn, $user, $pass) = @ENV{map { "DBIO_TEST_DB2_${_}" } qw/DSN USER PASS/};
 
 #warn "$dsn $user $pass";
 
-plan skip_all => 'Set $ENV{DBIOTEST_DB2_DSN}, _USER and _PASS to run this test'
+plan skip_all => 'Set $ENV{DBIO_TEST_DB2_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
 my $schema = DBIO::Test::Schema->connect($dsn, $user, $pass);

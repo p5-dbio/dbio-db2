@@ -18,6 +18,6 @@ class through `DBIO::Storage::DBI` driver registration.
 
 Set environment variables for integration tests:
 
-- `DBIOTEST_DB2_DSN`
-- `DBIOTEST_DB2_USER`
-- `DBIOTEST_DB2_PASS`
+- `DBIO_TEST_DB2_DSN`
+- `DBIO_TEST_DB2_USER`
+- `DBIO_TEST_DB2_PASS`
