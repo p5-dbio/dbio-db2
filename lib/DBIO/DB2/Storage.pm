@@ -42,8 +42,7 @@ queried from the server via C<SQL_QUALIFIER_NAME_SEPARATOR> on first access.
 
 =cut
 
-# TODO: DB2 needs a SQLMaker with apply_limit that uses RowNumberOver
-# (>= 5.004) or FetchFirst (older) based on server version.
+sub dbio_deploy_class { 'DBIO::DB2::Deploy' };
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
@@ -64,6 +63,15 @@ sub _dbh_last_insert_id {
 
   return @res ? $res[0] : undef;
 }
+
+sub deploy_setup { }
+
+=method deploy_setup
+
+No-op stub for DB2. Present for API compatibility with other drivers
+that need to allocate resources before a deploy operation.
+
+=cut
 
 =head1 SEE ALSO
 

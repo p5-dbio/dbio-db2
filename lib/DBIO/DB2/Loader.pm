@@ -14,10 +14,6 @@ use namespace::clean;
 
 use DBIO::Loader::Table ();
 
-=head1 NAME
-
-DBIO::DB2::Loader - DBIO::Loader::DBI DB2 Implementation.
-
 =head1 DESCRIPTION
 
 See L<DBIO::Loader> and L<DBIO::Loader::Base>.
