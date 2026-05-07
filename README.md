@@ -33,3 +33,7 @@ C<DBIO_TEST_DB2_USER>, and C<DBIO_TEST_DB2_PASS>.
 ## See Also
 
 L<DBIO::Introspect::Base>, L<DBIO::Diff::Base>
+
+## Repository
+
+L<https://github.com/p5-dbio/dbio-db2>
