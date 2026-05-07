@@ -6,6 +6,7 @@ use strict;
 use warnings;
 
 use DBI;
+use DBIO::SQL::Util qw(_split_statements);
 use DBIO::DB2::DDL;
 use DBIO::DB2::Introspect;
 use DBIO::DB2::Diff;
@@ -168,23 +169,6 @@ sub upgrade {
 }
 
 sub _dbh { $_[0]->schema->storage->dbh }
-
-sub _split_statements {
-  my ($sql) = @_;
-  my @stmts;
-  my $current = '';
-  for my $line (split /\n/, $sql) {
-    $current .= "$line\n";
-    if ($line =~ /;\s*$/) {
-      $current =~ s/^\s+|\s+$//g;
-      push @stmts, $current if $current =~ /\S/;
-      $current = '';
-    }
-  }
-  $current =~ s/^\s+|\s+$//g;
-  push @stmts, $current if $current =~ /\S/;
-  return @stmts;
-}
 
 =seealso
 

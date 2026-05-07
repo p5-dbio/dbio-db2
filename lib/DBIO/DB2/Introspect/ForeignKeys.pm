@@ -78,11 +78,7 @@ sub fetch {
 
   for my $key (sort keys %by_constraint) {
     my $fk = $by_constraint{$key};
-    # Find the parent table's referencing key columns
-    my @remote_cols;
-    my $ok = $ref_col_sth->execute($fk->{to_schema}, $fk->{to_schema});
     # Look for the specific refkeyname on the parent table
-    my %refkey_cols;
     my $refkey_sth = $dbh->prepare(q{
       SELECT colname, colseq
       FROM syscat.keycoluse

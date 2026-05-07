@@ -5,6 +5,8 @@ our $VERSION = '0.900000';
 use strict;
 use warnings;
 
+use DBIO::SQL::Util qw(_quote_ident);
+
 =head1 DESCRIPTION
 
 Column-level diff operations for DB2. DB2 has a reasonably complete
@@ -172,13 +174,6 @@ sub _db2_column_type {
   my ($type, $size) = @_;
   return $type unless defined $size && length $size;
   return "$type($size)";
-}
-
-sub _quote_ident {
-  my ($name) = @_;
-  return $name if $name =~ /^[a-z_][a-z0-9_]*$/i;
-  $name =~ s/"/""/g;
-  return qq{"$name"};
 }
 
 1;
