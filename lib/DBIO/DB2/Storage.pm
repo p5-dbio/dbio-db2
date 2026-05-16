@@ -11,14 +11,18 @@ __PACKAGE__->register_driver('DB2' => __PACKAGE__);
 
 __PACKAGE__->datetime_parser_type('DateTime::Format::DB2');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->sql_maker_class('DBIO::DB2::SQLMaker');
+
+sub sqlt_type { 'DB2' }
 
 =head1 DESCRIPTION
 
 Storage driver for IBM DB2 databases. Handles autoincrement column retrieval
-via C<IDENTITY_VAL_LOCAL()>, selects the appropriate SQL limit dialect
-(C<RowNumberOver> for DB2 5.4 and later, C<FetchFirst> for older versions),
-queries the server name separator from L<DBI>, and sets the datetime parser
-to L<DateTime::Format::DB2>.
+via C<IDENTITY_VAL_LOCAL()>, queries the server name separator from L<DBI>,
+and sets the datetime parser to L<DateTime::Format::DB2>.
+
+Uses L<DBIO::DB2::SQLMaker> for SQL generation with DB2-specific LIMIT/OFFSET
+support (C<ROW_NUMBER() OVER()> for OFFSET, C<FETCH FIRST n ROWS ONLY> otherwise).
 
 =cut
 

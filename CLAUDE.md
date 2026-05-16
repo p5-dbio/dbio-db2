@@ -1,5 +1,9 @@
 # CLAUDE.md -- DBIO::DB2
 
+## Perl Rules
+
+**MANDATORY: load the `dbio-perl-core` skill before editing any Perl code.** DBIO project conventions.
+
 ## Namespace
 
 - `DBIO::DB2` — DB2 schema component

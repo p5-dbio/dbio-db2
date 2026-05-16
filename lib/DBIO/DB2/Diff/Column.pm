@@ -5,6 +5,7 @@ our $VERSION = '0.900000';
 use strict;
 use warnings;
 
+use DBIO::DB2::Type qw(_db2_column_type);
 use DBIO::SQL::Util qw(_quote_ident);
 
 =head1 DESCRIPTION
@@ -168,12 +169,6 @@ sub summary {
   my $prefix = $self->action eq 'add' ? '+' : $self->action eq 'drop' ? '-' : '~';
   my $type = $self->new_info ? " ($self->{new_info}{data_type})" : '';
   return sprintf '  %scolumn: %s.%s%s', $prefix, $self->table_name, $self->column_name, $type;
-}
-
-sub _db2_column_type {
-  my ($type, $size) = @_;
-  return $type unless defined $size && length $size;
-  return "$type($size)";
 }
 
 1;

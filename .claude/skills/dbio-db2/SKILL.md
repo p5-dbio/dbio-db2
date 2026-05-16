@@ -36,7 +36,7 @@ __PACKAGE__->dbio_deploy_class('DBIO::DB2::Deploy');
 | `sql_name_sep` | Queries `SQL_QUALIFIER_NAME_SEPARATOR` (default `.`) |
 | `_dbh_last_insert_id` | `IDENTITY_VAL_LOCAL()` for auto-increment |
 | `deploy_setup` | No-op (DB2 does not need tablespace pre-allocation) |
-| `limit_dialect` | Auto-detected: `RowNumberOver` (5.4+) or `FetchFirst` (older) |
+| `sqlt_type` | Returns `'DB2'` for SQL::Translator |
 
 ## Introspection
 
