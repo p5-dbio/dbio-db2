@@ -1,6 +1,5 @@
 package DBIO::DB2::Introspect::Indexes;
 # ABSTRACT: Introspect DB2 indexes
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

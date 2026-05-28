@@ -1,6 +1,5 @@
 package DBIO::DB2::DDL;
 # ABSTRACT: Generate DB2 DDL from DBIO Result classes
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

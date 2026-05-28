@@ -1,6 +1,5 @@
 package DBIO::DB2::Introspect;
 # ABSTRACT: Introspect a DB2 database via SYSCAT + information_schema
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

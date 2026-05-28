@@ -1,6 +1,5 @@
 package DBIO::DB2::Introspect::Tables;
 # ABSTRACT: Introspect DB2 tables and views
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

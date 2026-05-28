@@ -1,4 +1,7 @@
 package DBIO::DB2;
+our $VERSION = '0.900000';
+
+
 # ABSTRACT: IBM DB2-specific schema management for DBIO
 
 use strict;

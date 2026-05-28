@@ -1,6 +1,5 @@
 package DBIO::DB2::SQLMaker;
 # ABSTRACT: SQL dialect for IBM DB2
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

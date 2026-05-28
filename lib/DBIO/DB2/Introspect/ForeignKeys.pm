@@ -1,6 +1,5 @@
 package DBIO::DB2::Introspect::ForeignKeys;
 # ABSTRACT: Introspect DB2 foreign keys
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

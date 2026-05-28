@@ -1,6 +1,5 @@
 package DBIO::DB2::Deploy;
 # ABSTRACT: Deploy and upgrade DB2 schemas via test-deploy-and-compare
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

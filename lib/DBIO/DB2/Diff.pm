@@ -1,6 +1,5 @@
 package DBIO::DB2::Diff;
 # ABSTRACT: Compare two introspected DB2 models
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

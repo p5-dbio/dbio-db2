@@ -1,6 +1,5 @@
 package DBIO::DB2::Diff::Table;
 # ABSTRACT: Diff operations for DB2 tables
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

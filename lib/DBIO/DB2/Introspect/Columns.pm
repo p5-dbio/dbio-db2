@@ -1,6 +1,5 @@
 package DBIO::DB2::Introspect::Columns;
 # ABSTRACT: Introspect DB2 columns
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;

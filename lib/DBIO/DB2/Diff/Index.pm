@@ -1,6 +1,5 @@
 package DBIO::DB2::Diff::Index;
 # ABSTRACT: Diff operations for DB2 indexes
-our $VERSION = '0.900000';
 
 use strict;
 use warnings;
