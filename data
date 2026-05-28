@@ -1,0 +1,18 @@
+---
+blocked: 'auto-block: no progress after 2 attempts (foundation)'
+claimed_at: 2026-05-28T15:27:08Z
+claimed_by: karr-coordinator
+class: standard
+created: 2026-05-28T15:25:59Z
+id: 1
+priority: high
+started: 2026-05-28
+status: closed
+tags:
+- dbio
+- cleanup
+title: Review and commit dbio-db2 changes
+updated: 2026-05-28T15:25:59Z
+---
+
+2 commits pushed: skills restructure + duplicate version removal. Tests pass.
