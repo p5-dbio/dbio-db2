@@ -34,10 +34,23 @@ sub install_ddl {
 
   my @stmts;
   my %seen_table;
+  my @view_stmts;
+  my %seen_view;
 
   for my $source_name (_topo_sort_sources($schema)) {
     my $source       = $schema->source($source_name);
     my $result_class = $source->result_class;
+    # Views: emit CREATE VIEW after all tables; skip virtual views.
+    if ($source->isa('DBIO::ResultSource::View')) {
+      next if $source->can('is_virtual') && $source->is_virtual;
+      my $vname = _resolve_table_name($source->name);
+      next if !defined $vname || $seen_view{$vname}++;
+      my $def = $source->can('view_definition') ? $source->view_definition : undef;
+      next unless defined $def && length $def;
+      push @view_stmts, sprintf 'CREATE VIEW %s AS %s;', _quote_ident($vname), $def;
+      next;
+    }
+
     my $table_name   = _resolve_table_name($source->name);
 
     next unless defined $table_name;
@@ -96,7 +109,9 @@ sub install_ddl {
     }
   }
 
-  return join "\n\n", @stmts;
+  return join "
+
+", @stmts, @view_stmts;
 }
 
 sub _resolve_table_name {
