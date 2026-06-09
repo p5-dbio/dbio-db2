@@ -1,0 +1,39 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T11:10:03Z
+id: 6
+priority: medium
+status: done
+tags:
+- loader
+- db2
+- cleanup
+- from:integration
+title: 'DBIO::DB2::Loader: legacy, depends on off-CPAN DBIO::Loader'
+updated: 2026-06-09T11:10:03Z
+---
+
+Surfaced 2026-06-09 by the containerised integration harness (clean container, no host-installed extras).
+
+PROBLEM
+DBIO::DB2::Loader does `use base qw/DBIO::Loader::DBI::Component::QuotedDefault DBIO::Loader::DBI/`. In a clean environment those base classes do not exist:
+  Base class package "DBIO::Loader::DBI::Component::QuotedDefault" is empty
+=> t/00-load.t fails (use_ok DBIO::DB2::Loader).
+
+DBIO::Loader is the legacy introspection system. It is:
+  - NOT in dbio core (find dbio/lib -path '*Loader*' => empty; core dropped it)
+  - NOT on CPAN (cpanm --info DBIO::Loader => not found)
+  - only present because it happens to be installed in the dev's ~/perl5
+  - NOT declared in dbio-db2/cpanfile
+
+Sibling drivers already moved on: dbio-postgresql and dbio-mysql have NO Loader.pm. Only dbio-db2 and dbio-sqlite still carry the legacy Loader (dbio-sqlite/t/00-load.t has the same latent failure).
+
+DECISION NEEDED (pick one, ideally consistent with sqlite):
+  (a) REMOVE DBIO::DB2::Loader + its t/00-load.t entry + CLAUDE.md "Loader" rows — match pg/mysql. New Introspect/Diff/Deploy stack replaces it.
+  (b) KEEP it but declare DBIO::Loader as an optional dep and guard the load test (skip if DBIO::Loader absent). Requires DBIO::Loader to be published somewhere installable.
+
+Recommend (a): the driver's own Introspect (SYSCAT) + Generate path is the supported route; Loader is dead weight.
+
+Cross-ref: dbio-sqlite has the identical issue — coordinate a fleet-wide decision.
+DONE 2026-06-09 (commit 1747e51): removed lib/DBIO/DB2/Loader.pm; t/00-load.t now loads real components; CLAUDE.md cleaned. Chose option (a) remove, matching pg/mysql. NOTE: dbio-sqlite has identical latent failure — needs same decision there.
