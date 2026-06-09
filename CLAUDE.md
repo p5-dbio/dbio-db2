@@ -94,6 +94,17 @@ export DBIO_TEST_DB2_PASS=secret
 prove -l t/
 ```
 
+No local DB2? `maint/` ships two ways to get a real instance:
+
+- **`maint/docker/`** — `docker compose up --build` brings up an IBM DB2 community
+  server plus a Perl container with `DBD::DB2` built against the IBM clidriver,
+  then runs the suite. Needs no local DB2 client. Mounts dbio core + dbio-db2
+  source, so editing tests needs no rebuild. (Note: `DBD::DB2`'s Makefile.PL
+  needs `DBI` installed *first* — it does not declare it as a configure prereq.)
+- **`maint/k8s/db2-pod.yaml`** — DB2 pod + Service for a cluster, reached via
+  `kubectl port-forward` (mirrors `dbio-postgresql-async/maint/k8s/pg-pod.yaml`).
+  Still needs `DBD::DB2` locally.
+
 Tests:
 - `t/00-load.t` — module load
 - `t/10-db2.t` — storage, RNO, name_sep, limit dialect, auto-PK, populate, type_info
