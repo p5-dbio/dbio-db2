@@ -1,0 +1,31 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T14:25:15Z
+id: 7
+priority: medium
+status: done
+tags:
+- introspect
+- db2
+- from:integration
+title: 'Introspect: capture GENERATED AS IDENTITY for auto-increment fidelity'
+updated: 2026-06-09T14:25:15Z
+---
+
+Surfaced 2026-06-09 while implementing the Introspect contract (karr #3, commit ad0cf31).
+
+GAP
+DBIO::DB2::Introspect::Columns reads syscat.columns but does NOT capture identity/generated metadata (syscat.columns.identity = 'Y', generated, etc.). So the native model columns have no is_auto_increment signal, and the new table_columns_info() contract method cannot set is_auto_increment / retrieve_on_insert. For DBIO::Generate this means generated result classes miss is_auto_increment on DB2 identity PKs.
+
+FIX
+- Add identity/generated columns to the syscat.columns SELECT in
+  lib/DBIO/DB2/Introspect/Columns.pm; store e.g. is_auto_increment / generated
+  in each column hash.
+- In DBIO::DB2::Introspect::table_columns_info, set is_auto_increment => 1 (and
+  retrieve_on_insert => 1 when the column is in the PK) from that field — cf.
+  the PostgreSQL pattern ($column->{identity}).
+- Extend t/40-introspect-contract.t with an identity column fixture asserting
+  is_auto_increment.
+
+MINOR (same area): t/10-db2.t and t/20-db2-core.t are byte-identical — consolidate to a single integration test.
