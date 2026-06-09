@@ -4,8 +4,11 @@ package DBIO::DB2::Diff::Column;
 use strict;
 use warnings;
 
+use base 'DBIO::Diff::Op';
+
 use DBIO::DB2::Type qw(_db2_column_type);
 use DBIO::SQL::Util qw(_quote_ident);
+use DBIO::Diff::Compare qw(is_same_column);
 
 =head1 DESCRIPTION
 
@@ -29,15 +32,11 @@ C<ALTER TABLE> repertoire:
 Brand-new tables get their columns inline via L<DBIO::DB2::Diff::Table>
 -- this module only sees columns of tables that exist in both models.
 
+C<new>, C<action> and C<summary_prefix> come from L<DBIO::Diff::Op>.
+
 =cut
 
-sub new { my ($class, %args) = @_; bless \%args, $class }
-
-sub action      { $_[0]->{action} }
-sub table_name  { $_[0]->{table_name} }
-sub column_name { $_[0]->{column_name} }
-sub old_info    { $_[0]->{old_info} }
-sub new_info    { $_[0]->{new_info} }
+__PACKAGE__->mk_diff_accessors(qw/table_name column_name old_info new_info/);
 
 =method diff
 
@@ -68,14 +67,8 @@ sub diff {
       }
 
       my $src = $src_by_name{$col_name};
-      my $changed = 0;
-      $changed = 1 if _norm_type($src->{data_type}, $src->{size})
-                    ne _norm_type($tgt->{data_type}, $tgt->{size});
-      $changed = 1 if ($src->{not_null} // 0) != ($tgt->{not_null} // 0);
-      $changed = 1 if (defined $src->{default_value} ? $src->{default_value} : '')
-                   ne (defined $tgt->{default_value} ? $tgt->{default_value} : '');
 
-      if ($changed) {
+      if (scalar is_same_column($src, $tgt)) {
         push @ops, $class->new(
           action      => 'alter',
           table_name  => $table_name,
@@ -98,14 +91,6 @@ sub diff {
   }
 
   return @ops;
-}
-
-sub _norm_type {
-  my ($t, $size) = @_;
-  $t = uc($t // '');
-  $t .= "($size)" if defined $size && length $size;
-  $t =~ s/\s+/ /g;
-  return $t;
 }
 
 =method as_sql
@@ -138,8 +123,8 @@ sub as_sql {
     my $new = $self->new_info;
     my @stmts;
 
-    if (_norm_type($old->{data_type}, $old->{size})
-        ne _norm_type($new->{data_type}, $new->{size})) {
+    if (_db2_column_type($old->{data_type}, $old->{size})
+        ne _db2_column_type($new->{data_type}, $new->{size})) {
       push @stmts, sprintf 'ALTER TABLE %s ALTER COLUMN %s SET DATA TYPE %s;',
         $tbl, $col, _db2_column_type($new->{data_type}, $new->{size});
     }
@@ -165,9 +150,9 @@ sub as_sql {
 
 sub summary {
   my ($self) = @_;
-  my $prefix = $self->action eq 'add' ? '+' : $self->action eq 'drop' ? '-' : '~';
   my $type = $self->new_info ? " ($self->{new_info}{data_type})" : '';
-  return sprintf '  %scolumn: %s.%s%s', $prefix, $self->table_name, $self->column_name, $type;
+  return sprintf '  %scolumn: %s.%s%s',
+    $self->summary_prefix, $self->table_name, $self->column_name, $type;
 }
 
 1;

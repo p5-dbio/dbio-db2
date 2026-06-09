@@ -4,6 +4,8 @@ package DBIO::DB2::Diff::Table;
 use strict;
 use warnings;
 
+use base 'DBIO::Diff::Op';
+
 use DBIO::DB2::Type qw(_db2_column_type);
 use DBIO::SQL::Util qw(_quote_ident);
 
@@ -13,15 +15,12 @@ Represents a table-level diff operation in DB2: C<CREATE TABLE> or
 C<DROP TABLE>. C<create> ops capture the target columns and foreign keys
 so C<as_sql> can emit the full inline definition in a single statement.
 
+C<new>, the C<action> accessor and C<summary_prefix> come from
+L<DBIO::Diff::Op>.
+
 =cut
 
-sub new { my ($class, %args) = @_; bless \%args, $class }
-
-sub action       { $_[0]->{action} }
-sub table_name   { $_[0]->{table_name} }
-sub table_info   { $_[0]->{table_info} }
-sub columns      { $_[0]->{columns} }
-sub foreign_keys { $_[0]->{foreign_keys} }
+__PACKAGE__->mk_diff_accessors(qw/table_name table_info columns foreign_keys/);
 
 =method diff
 
@@ -110,8 +109,7 @@ sub as_sql {
 
 sub summary {
   my ($self) = @_;
-  my $prefix = $self->action eq 'create' ? '+' : '-';
-  return sprintf '%s table: %s', $prefix, $self->table_name;
+  return sprintf '%s table: %s', $self->summary_prefix, $self->table_name;
 }
 
 1;

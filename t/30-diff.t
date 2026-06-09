@@ -158,13 +158,23 @@ use_ok 'DBIO::DB2::Diff';
 }
 
 # --- Diff::Column drop DEFAULT ---
+# Under DBIO::Diff::Compare desired-state semantics, a target column that simply
+# omits default_value is "don't care" -- diff() emits no alter. The as_sql
+# DROP DEFAULT rendering is exercised directly on an explicit alter op.
 {
   my @ops = DBIO::DB2::Diff::Column->diff(
     { t => [ { column_name => 'a', data_type => 'integer', default_value => '5' } ] },
     { t => [ { column_name => 'a', data_type => 'integer' } ] },
     { t => {} }, { t => {} },
   );
-  like($ops[0]->as_sql, qr/ALTER COLUMN a DROP DEFAULT;/, 'DROP DEFAULT');
+  is(scalar @ops, 0, 'omitted target default is not a change (desired-state)');
+
+  my $op = DBIO::DB2::Diff::Column->new(
+    action => 'alter', table_name => 't', column_name => 'a',
+    old_info => { data_type => 'integer', default_value => '5' },
+    new_info => { data_type => 'integer', default_value => undef },
+  );
+  like($op->as_sql, qr/ALTER COLUMN a DROP DEFAULT;/, 'as_sql renders DROP DEFAULT');
 }
 
 # --- Diff::Column skips brand-new tables ---
