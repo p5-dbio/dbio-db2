@@ -1,0 +1,26 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T00:20:46Z
+id: 2
+priority: medium
+status: done
+tags:
+- diff
+- from:dbio
+- tests
+title: Add offline Diff test coverage
+updated: 2026-06-09T00:20:46Z
+---
+
+Origin: dbio core Diff audit (2026-06-09).
+
+GAP: t/ has NO diff test. lib/DBIO/DB2/Diff.pm + Diff/{Column,Index,Table}.pm are untested. Structure itself is sound (inherits DBIO::Diff::Base, implements _build_operations, all op classes have as_sql+summary) — but unverified by tests.
+
+ADD offline/mock test (no real DB — core convention). Model tests:
+  - dbio-sqlite/t/31-diff.t
+  - dbio-mysql/t/40-diff.t
+  - dbio-postgresql/t/04-diff-column.t
+
+COVER per op type: Table create/drop, Column add/drop/modify, Index create/drop. Assert as_sql() DDL + summary().
+DONE 2026-06-09: t/30-diff.t added, 50 assertions, all pass. Covers Table/Column/Index op classes + orchestrator. Commit 01e57fe.
