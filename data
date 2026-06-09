@@ -1,0 +1,25 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T10:32:13Z
+id: 4
+priority: low
+status: done
+tags:
+- architecture
+- from:dbio
+title: Architecture review (improve-codebase-architecture)
+updated: 2026-06-09T10:32:13Z
+---
+
+Origin: dbio core cross-driver audit (2026-06-09).
+
+DB2-SPECIFIC: Deploy.pm builds DBIO::DB2::Introspect->new(...)->model in 2 spots (~line 90 deploy-diff, ~129 test-schema). Check for duplicated introspector setup / a missing factory method (cf. SQLite::Deploy::_new_introspect). Introspect contract methods missing (open ticket).
+
+RUN: improve-codebase-architecture skill locally in this repo (uses local CONTEXT.md + docs/adr/). Goal: find deepening/refactoring opportunities, consolidate tightly-coupled modules, improve testability.
+
+CROSS-CUTTING (all DBIO drivers, from core Diff+Introspect audit 2026-06-09):
+- Diff/ and Introspect/ both rest on the same per-engine subdir-helper pattern (Tables/Columns/ForeignKeys/Indexes). The model built by Introspect::_build_model is the shared substrate for BOTH Diff (via Deploy->model) and the introspection contract. Check for duplicated table/column normalization logic between Diff/* and Introspect/* — candidate for a single shared normalizer.
+- Driver inherits DBIO::Introspect::Base + DBIO::Diff::Base from core. Confirm no logic that belongs in core base classes was copied locally.
+- Do NOT duplicate the already-filed tickets (tags: diff,introspect). This review is for architecture/cohesion, not those specific gaps.
+PARTIAL 2026-06-09 (commit 53fa678): Deploy _new_introspect factory extracted (the concrete dedup). FINDINGS: (1) type mapping already centralized in DBIO::DB2::Type — no Diff/Introspect normalizer dup, no action. (2) t/10 == t/20 byte-identical — consolidation candidate. (3) _introspect_test_schema does fragile regex schema-qualification of DDL strings. (4) no CONTEXT.md/ADR convention in the family — not introducing unilaterally. Closing the factory part; remaining items are observations.
