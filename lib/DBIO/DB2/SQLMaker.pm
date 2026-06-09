@@ -4,7 +4,7 @@ package DBIO::DB2::SQLMaker;
 use strict;
 use warnings;
 
-use base 'DBIO::SQLMaker::ClassicExtensions';
+use base 'DBIO::SQLMaker';
 
 =head1 DESCRIPTION
 
