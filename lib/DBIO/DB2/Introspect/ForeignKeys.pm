@@ -4,6 +4,8 @@ package DBIO::DB2::Introspect::ForeignKeys;
 use strict;
 use warnings;
 
+use DBIO::Introspect::Base ();
+
 =head1 DESCRIPTION
 
 Fetches foreign-key metadata via C<SYSCAT.TABCONST> joined with
@@ -48,61 +50,51 @@ sub fetch {
   my $ok = eval { $sth->execute($schema); 1 };
   return \%fks unless $ok;
 
-  my %by_constraint;
+  # Collect the flat rows (one per FK column, in colseq order) and group them by
+  # constraint via the core ordered aggregator, which preserves column order
+  # within each FK.
+  my @rows;
   while (my $row = $sth->fetchrow_hashref) {
     next unless exists $tables->{ $row->{tabname} };
-    my $key = $row->{tabname} . "\0" . $row->{constname};
-    $by_constraint{$key} //= {
-      fk_id        => $row->{constname},
-      from_table   => $row->{tabname},
-      from_columns => [],
-      to_table     => $row->{reftabname},
-      to_schema    => $row->{reftabschema},
-      to_columns   => [],
-      on_update    => $row->{updaterule},
-      on_delete    => $row->{deleterule},
-    };
-    push @{ $by_constraint{$key}{from_columns} }, $row->{colname};
+    $row->{_grp} = $row->{tabname} . "\0" . $row->{constname};
+    push @rows, $row;
   }
+  my $groups = DBIO::Introspect::Base->_aggregate_by_ordered(\@rows, '_grp');
 
-  # Resolve the referencing key to remote columns
-  # The reftab's refkeyname tells us which unique constraint on the parent
-  # table is referenced. We look up its column names in order.
-  my $ref_col_sth = $dbh->prepare(q{
-    SELECT colname, colseq
-    FROM syscat.keycoluse
-    WHERE constname = ? AND tabschema = ?
-    ORDER BY colseq
+  # Parent-PK lookup: DB2 SYSCAT.REFERENCES points at the parent's referenced
+  # key by name, but we resolve the parent primary-key columns directly (kept
+  # DB2-specific multi-step resolution).
+  my $pk_sth = $dbh->prepare(q{
+    SELECT kcu.colname, kcu.colseq
+    FROM syscat.keycoluse kcu
+    JOIN syscat.tabconst tc
+      ON kcu.constname = tc.constname
+        AND kcu.tabschema = tc.tabschema
+        AND kcu.tabname = tc.tabname
+    WHERE tc.tabschema = ? AND tc.tabname = ? AND tc.type = 'P'
+    ORDER BY kcu.colseq
   });
 
-  for my $key (sort keys %by_constraint) {
-    my $fk = $by_constraint{$key};
-    # Look for the specific refkeyname on the parent table
-    my $refkey_sth = $dbh->prepare(q{
-      SELECT colname, colseq
-      FROM syscat.keycoluse
-      WHERE tabschema = ? AND tabname = ? AND constname = ?
-      ORDER BY colseq
-    });
-    # Use the parent table's primary key as the remote columns
-    my $pk_sth = $dbh->prepare(q{
-      SELECT kcu.colname, kcu.colseq
-      FROM syscat.keycoluse kcu
-      JOIN syscat.tabconst tc
-        ON kcu.constname = tc.constname
-          AND kcu.tabschema = tc.tabschema
-          AND kcu.tabname = tc.tabname
-      WHERE tc.tabschema = ? AND tc.tabname = ? AND tc.type = 'P'
-      ORDER BY kcu.colseq
-    });
+  for my $pair (@$groups) {
+    my ($key, $group) = @$pair;
+    my $first = $group->[0];
+    my $fk = {
+      fk_id        => $first->{constname},
+      from_table   => $first->{tabname},
+      from_columns => [ map { $_->{colname} } @$group ],
+      to_table     => $first->{reftabname},
+      to_schema    => $first->{reftabschema},
+      to_columns   => [],
+      on_update    => $first->{updaterule},
+      on_delete    => $first->{deleterule},
+    };
+
     my @pk_cols;
-    my $pk_ok = $pk_sth->execute($fk->{to_schema}, $fk->{to_table});
-    if ($pk_ok) {
+    if (eval { $pk_sth->execute($fk->{to_schema}, $fk->{to_table}); 1 }) {
       while (my $r = $pk_sth->fetchrow_hashref) {
         push @pk_cols, $r->{colname};
       }
     }
-    # If we found the parent PK, use it; otherwise use from_columns count as placeholder
     $fk->{to_columns} = \@pk_cols;
     push @{ $fks{ $fk->{from_table} } }, $fk;
   }
