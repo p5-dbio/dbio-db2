@@ -15,7 +15,7 @@
 #   DBIO_TEST_DB2_DSN='dbi:DB2:DATABASE=testdb;HOSTNAME=127.0.0.1;PORT=50000;PROTOCOL=TCPIP;' \
 #   DBIO_TEST_DB2_USER=db2inst1 \
 #   DBIO_TEST_DB2_PASS=dbio \
-#     prove -l -I../dbio/lib t/10-db2.t t/20-db2-core.t
+#     prove -l -I../dbio/lib t/10-db2.t
 #
 #   kubectl delete -f maint/k8s/db2-pod.yaml
 ---

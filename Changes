@@ -1,6 +1,25 @@
 Revision history for DBIO-DB2
 
 {{$NEXT}}
+    - Introspect: capture GENERATED AS IDENTITY in column metadata so
+      is_auto_increment is exposed to DBIO::Generate
+    - Introspect: drop 6 redundant contract methods (table_keys, table_columns,
+      table_columns_info, table_pk_info, table_uniq_info, table_is_view);
+      inherited unchanged from DBIO::Introspect::Base since the native model
+      already uses the canonical shape
+    - Introspect: use _aggregate_by_ordered for FK grouping; keep DB2-specific
+      parent-PK resolution
+    - Introspect: fix unique_rule->uniquerule typo and tag the PK-backing
+      index with origin=>'pk' so the inherited table_uniq_info drops it
+    - Diff::Table/Column/Index: adopt DBIO::Diff::Op base + mk_diff_accessors,
+      replace inline 'did this change?' checks with is_same_column /
+      is_same_index from DBIO::Diff::Compare
+    - Deploy: adopt DBIO::Deploy::Base; install/diff/apply/upgrade come from
+      the shared base, this class supplies _ddl_class/_introspect_class/
+      _diff_class hooks and the DB2-specific _build_target_model that splices
+      the desired schema into a throwaway CREATE SCHEMA
+    - Tests: consolidate byte-identical t/10-db2.t + t/20-db2-core.t into
+      t/10-db2.t (the single integration test)
     - DDL: emit CREATE VIEW for non-virtual views (from view_definition),
       after all tables; previously view sources got a CREATE TABLE
     - Initial extraction from DBIO core as separate distribution

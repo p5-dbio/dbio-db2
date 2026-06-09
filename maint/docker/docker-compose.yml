@@ -3,8 +3,9 @@
 #   cd maint/docker
 #   docker compose up --build --abort-on-container-exit --exit-code-from test
 #
-# Brings up an IBM DB2 community server, then runs t/10-db2.t + t/20-db2-core.t
-# inside a Perl container that has DBD::DB2 built against the IBM clidriver.
+# Brings up an IBM DB2 community server, then runs t/10-db2.t (the single
+# integration test) inside a Perl container that has DBD::DB2 built against
+# the IBM clidriver.
 # The "test" container mounts the live source of both dbio core and dbio-db2,
 # so no rebuild is needed when editing tests.
 #
