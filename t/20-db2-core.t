@@ -3,7 +3,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 use DBIO::Optional::Dependencies ();
 use DBIO::Test;
 
@@ -23,21 +22,15 @@ my $name_sep = $schema->storage->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR');
 
 my $dbh = $schema->storage->dbh;
 
-# test RNO and name_sep detection
+# test name_sep detection
+#
+# DBIO replaced DBIx::Class's limit_dialect string + emulate_limit() with an
+# apply_limit() method on the SQLMaker subclass (see DBIO core Heritage.pod).
+# DBIO::DB2::SQLMaker::apply_limit picks RowNumberOver when an offset is present
+# and FetchFirst otherwise; both paths are exercised functionally below.
 
 is $schema->storage->sql_maker->name_sep, $name_sep,
   'name_sep detection';
-
-my $have_rno = try {
-  $dbh->selectrow_array(
-"SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
-  );
-  1;
-};
-
-is $schema->storage->sql_maker->limit_dialect,
-  ($have_rno ? 'RowNumberOver' : 'FetchFirst'),
-  'limit_dialect detection';
 
 eval { $dbh->do("DROP TABLE artist") };
 
@@ -107,13 +100,11 @@ is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
-# test FetchFirst limit dialect syntax
+# FetchFirst path: a rows-only limit (no offset) emits FETCH FIRST n ROWS ONLY.
+# artistids in order are: 1, 2, 3, 66, 101, 102.
 {
-  local $schema->storage->sql_maker->{limit_dialect} = 'FetchFirst';
-
   my $lim = $ars->search({}, {
     rows => 3,
-    offset => 2,
     order_by => 'artistid',
   });
 
@@ -121,9 +112,9 @@ is( $lim->next, undef, "next past end of resultset ok" );
 
   is $lim->all, 3, 'fetch first number of ->all objects matches count';
 
+  is $lim->next->artistid, 1, 'iterator->next ok';
+  is $lim->next->artistid, 2, 'iterator->next ok';
   is $lim->next->artistid, 3, 'iterator->next ok';
-  is $lim->next->artistid, 66, 'iterator->next ok';
-  is $lim->next->artistid, 101, 'iterator->next ok';
   is $lim->next, undef, 'iterator->next past end of resultset ok';
 }
 
