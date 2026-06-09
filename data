@@ -1,0 +1,35 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T04:12:19Z
+id: 3
+priority: medium
+status: done
+tags:
+- introspect
+- from:dbio
+title: 'Introspect: wire normalized contract methods for DBIO::Generate'
+updated: 2026-06-09T04:12:19Z
+---
+
+Origin: dbio core Introspect audit (2026-06-09).
+
+CURRENT STATE
+DBIO::DB2::Introspect inherits DBIO::Introspect::Base and implements _build_model (rich native model via Introspect/{Tables,Columns,ForeignKeys,Indexes,...}). That model powers Diff. GOOD.
+
+GAP
+The 7 normalized contract methods from DBIO::Introspect::Base — table_keys, table_columns, table_columns_info, table_pk_info, table_uniq_info, table_fk_info, table_is_view — are NOT overridden here, so they inherit Base's 'die not implemented'. Consequence: DBIO::DB2::Introspect cannot serve as a high-fidelity source for DBIO::Generate. Generate (dbiogen) currently falls back to the generic DBIO::Introspect::DBI (DBI metadata APIs — lower fidelity: weaker view/FK/comment/auto-increment detection). The driver's rich native model is unreachable by Generate.
+
+No live breakage today (nobody passes the driver introspector to Generate->dump; dbiogen uses Introspect::DBI). This is an incomplete feature, not a crash.
+
+FIX (trivial — copy the pg/mysql pattern)
+Implement the 7 contract methods as thin delegations to $self->model, exactly like:
+  - dbio-postgresql/lib/DBIO/PostgreSQL/Introspect.pm (sub table_keys etc. read from $self->model->{tables})
+  - dbio-mysql/lib/DBIO/MySQL/Introspect.pm
+Also consider the optional hooks (view_definition, table_comment, column_comment) if the native model already carries that data.
+
+TESTS
+t/ has NO introspect test — add an offline contract test. Model: dbio-postgresql/t/24-introspect-contract.t and dbio-mysql/t/50-introspect-contract.t. Offline/mock only (core convention — no real DB). Optionally also a generate-via-introspect test like dbio-postgresql/t/25-generate-via-introspect.t.
+
+CONTRACT REF: DBIO::Introspect::Base in dbio core.
+DONE 2026-06-09 (commit ad0cf31): all 7 contract methods implemented as model delegations + offline t/40-introspect-contract.t (72 assertions in offline suite). KNOWN GAP: columns model lacks GENERATED AS IDENTITY capture -> is_auto_increment not set (see new ticket). generate-via-introspect test (pg t/25 style) not done — optional follow-up.
