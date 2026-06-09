@@ -1,0 +1,33 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T11:09:55Z
+id: 5
+priority: high
+status: done
+tags:
+- tests
+- db2
+- from:integration
+title: Port DB2 integration tests off removed limit_dialect API
+updated: 2026-06-09T11:09:55Z
+---
+
+Surfaced 2026-06-09 by the new containerised DB2 integration harness (maint/docker) — first time t/10+t/20 ran against a real DB2.
+
+ROOT CAUSE
+t/10-db2.t and t/20-db2-core.t were copied from DBIx::Class's DB2 tests and never ported to the DBIO API. They call:
+  $schema->storage->sql_maker->limit_dialect            (t/10:38, t/20:38)
+  local $schema->storage->sql_maker->{limit_dialect}    (t/10:112, t/20:112)
+  t/sqlmaker/limit_dialects/fetch_first.t               (whole file)
+
+But DBIO REMOVED limit_dialect — see dbio core DBIO/Manual/Heritage.pod:57 "apply_limit replaces limit_dialect". DBIx::Class' sql_limit_dialect string + emulate_limit() were replaced by an apply_limit() method on the SQLMaker subclass. DBIO::DB2::SQLMaker correctly implements apply_limit; the TESTS still reach for the gone accessor, so they die:
+  [SQL::Abstract::AUTOLOAD] Fatal: AUTOLOAD invoked for method name limit_dialect and allow_autoload option not set
+
+Commit 36ff7a9 already removed the limit_dialect *claim* from Storage but left the tests.
+
+FIX
+Port the integration tests to the apply_limit API. Drop limit_dialect detection assertions (or rewrite to assert RNO vs FetchFirst SQL output via apply_limit / a real LIMIT+OFFSET query). Review t/sqlmaker/limit_dialects/*.t for the same staleness.
+
+VERIFY with maint/docker: docker compose up --build. name_sep detection already passes against real DB2; auto-PK/populate/type_info assertions are still unverified behind the limit_dialect failure.
+DONE 2026-06-09 (commit 4c08851): dropped limit_dialect assertions + {limit_dialect} poke; both limit paths (RNO via rows+offset, FetchFirst via rows-only) now tested functionally; removed stale t/sqlmaker/limit_dialects/fetch_first.t. Verified green vs real DB2 (22 tests each).
