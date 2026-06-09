@@ -73,11 +73,6 @@ Supports `install`, `diff`, `apply`, and `upgrade`.
 
 Type mapping: PostgreSQL-style types (serial, bigserial, timestamptz) mapped to DB2 equivalents.
 
-## Loader (legacy introspection)
-
-`DBIO::DB2::Loader` extends `DBIO::Loader::DBI` for the old `DBIO::Loader` system.
-Excludes system schemas: `SYSCAT`, `SYSIBM`, `SYSIBMADM`, `SYSPUBLIC`, `SYSSTAT`, `SYSTOOLS`.
-
 ## Foreign Keys
 
 DB2 enforces referential integrity. FK constraints are emitted inline in `CREATE TABLE`
@@ -119,4 +114,5 @@ Tests:
 | `DBIO::DB2::Diff` | Compare introspected models |
 | `DBIO::DB2::Introspect` | Read live DB via SYSCAT |
 | `DBIO::DB2::DDL` | Generate DB2 DDL |
-| `DBIO::DB2::Loader` | Legacy DBIO::Loader introspection |
+| `DBIO::DB2::SQLMaker` | DB2 SQL dialect (apply_limit: RowNumberOver / FetchFirst) |
+| `DBIO::DB2::Type` | DB2 column type mapping |
