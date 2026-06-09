@@ -4,11 +4,10 @@ package DBIO::DB2::Deploy;
 use strict;
 use warnings;
 
-use DBI;
-use DBIO::SQL::Util qw(_split_statements);
+use base 'DBIO::Deploy::Base';
+
+# Loaded without importing: only _split_statements is needed, and only here.
 use DBIO::DB2::DDL;
-use DBIO::DB2::Introspect;
-use DBIO::DB2::Diff;
 
 =head1 DESCRIPTION
 
@@ -22,14 +21,22 @@ For upgrades it:
 
 =item 1. Introspects the live database via C<SYSCAT>
 
-=item 2. Deploys the desired schema (from DBIO classes) into the live DB
-         (we use the live DB as the target since DB2 requires an existing DB)
+=item 2. Deploys the desired schema (from DBIO classes) into a temporary
+         schema in the same DB (DB2 requires an existing database; only
+         a schema can be throwaway)
 
 =item 3. Introspects the database after deployment
 
 =item 4. Computes the diff between the two models using L<DBIO::DB2::Diff>
 
 =back
+
+C<install>/C<diff>/C<apply>/C<upgrade> and the dbh/schema accessors come
+from L<DBIO::Deploy::Base>; this class supplies the three class-name hooks
+(L</_ddl_class>, L</_introspect_class>, L</_diff_class>), the
+L</_new_introspect> factory that threads a target schema into the
+introspector, and the genuinely DB2-specific L</_build_target_model> that
+splices the desired schema into a throwaway C<CREATE SCHEMA> block.
 
     my $deploy = DBIO::DB2::Deploy->new(
         schema => MyApp::DB->connect("dbi:DB2:database=mydb"),
@@ -41,151 +48,94 @@ For upgrades it:
 
 =cut
 
-sub new {
-  my ($class, %args) = @_;
-  bless \%args, $class;
-}
+# --- class-name hooks for DBIO::Deploy::Base -------------------------------
 
-sub schema { $_[0]->{schema} }
-
-=attr schema
-
-A connected L<DBIO::Schema> instance using the L<DBIO::DB2> component.
-Required.
-
-=cut
-
-=method install
-
-    $deploy->install;
-
-Generates DDL via L<DBIO::DB2::DDL/install_ddl> and executes each
-statement against the connected database. Suitable for fresh installs.
-
-=cut
-
-sub install {
-  my ($self) = @_;
-  my $ddl = DBIO::DB2::DDL->install_ddl($self->schema);
-  my $dbh = $self->_dbh;
-  for my $stmt (_split_statements($ddl)) {
-    $dbh->do($stmt);
-  }
-  return 1;
-}
-
-=method diff
-
-    my $diff = $deploy->diff;
-
-Computes the difference between the live database and the desired state.
-Introspects the live database, deploys the desired schema into a test
-tablespace, introspects that, and returns a L<DBIO::DB2::Diff> object.
-
-=cut
-
-sub diff {
-  my ($self) = @_;
-
-  my $source_model = $self->_new_introspect($self->_dbh)->model;
-
-  # For DB2 we deploy to a temporary schema to compare against
-  # We use the same DB but into a test schema
-  my $test_schema = '_dbio_test_' . $$;
-  my $dbh = $self->_dbh;
-
-  # Create test schema
-  $dbh->do("CREATE SCHEMA $test_schema");
-
-  my $target_model = $self->_introspect_test_schema($test_schema);
-
-  # Drop test schema
-  $dbh->do("DROP SCHEMA $test_schema RESTRICT");
-
-  return DBIO::DB2::Diff->new(
-    source => $source_model,
-    target => $target_model,
-  );
-}
-
-sub _introspect_test_schema {
-  my ($self, $test_schema) = @_;
-  my $dbh = $self->_dbh;
-
-  # Create test tables by executing DDL with schema prefix
-  my $ddl = DBIO::DB2::DDL->install_ddl($self->schema);
-  my @stmts = _split_statements($ddl);
-
-  for my $stmt (@stmts) {
-    # Add schema qualifier to table names
-    $stmt =~ s/CREATE TABLE (\w+)/CREATE TABLE $test_schema.$1/g;
-    $stmt =~ s/DROP TABLE (\w+)/DROP TABLE $test_schema.$1/g;
-    $stmt =~ s/CREATE INDEX (\w+) ON (\w+)/CREATE INDEX $test_schema.$1 ON $test_schema.$2/g;
-    $stmt =~ s/DROP INDEX (\w+)/DROP INDEX $test_schema.$1/g;
-    $dbh->do($stmt);
-  }
-
-  # Now introspect the test schema
-  return $self->_new_introspect($dbh, $test_schema)->model;
-}
+sub _ddl_class       { 'DBIO::DB2::DDL'        }
+sub _introspect_class { 'DBIO::DB2::Introspect' }
+sub _diff_class      { 'DBIO::DB2::Diff'       }
 
 =method _new_introspect
 
     my $intro = $self->_new_introspect($dbh);
     my $intro = $self->_new_introspect($dbh, $schema);
 
-Factory for the introspector. Override in a subclass to use a custom
-L<DBIO::DB2::Introspect> subclass. The optional C<$schema> selects the DB2
-schema to introspect (defaults to the introspector's own default).
+Factory for the introspector. The optional C<$schema> selects the DB2
+schema to introspect (defaults to the introspector's own default, used
+when introspecting the live C<schema()>).
 
 =cut
 
 sub _new_introspect {
   my ($self, $dbh, $schema) = @_;
-  return DBIO::DB2::Introspect->new(
+  return $self->_introspect_class->new(
     dbh => $dbh,
     (defined $schema ? (schema => $schema) : ()),
   );
 }
 
-=method apply
+=method _build_target_model
 
-    $deploy->apply($diff);
+    my $target_model = $self->_build_target_model;
 
-Applies a L<DBIO::DB2::Diff> object by executing each statement from
-C<< $diff->as_sql >>. No-op if the diff has no changes.
+DB2-specific target model construction:
 
-=cut
+=over 4
 
-sub apply {
-  my ($self, $diff) = @_;
-  return unless $diff->has_changes;
-  my $dbh = $self->_dbh;
-  for my $stmt (_split_statements($diff->as_sql)) {
-    next if $stmt =~ /^\s*--/;
-    $dbh->do($stmt);
-  }
-  return 1;
-}
+=item 1. C<CREATE SCHEMA _dbio_test_<pid>> in the same database
 
-=method upgrade
+=item 2. Re-emit the install DDL with every C<CREATE/DROP TABLE/INDEX>
+         statement schema-qualified to the test schema (DBIO::DB2::DDL
+         does not auto-qualify)
 
-    my $diff = $deploy->upgrade;
+=item 3. Introspect the test schema
 
-Convenience: calls L</diff> then L</apply>. Returns the diff object if
-changes were applied, or C<undef> if the database was already up to date.
+=item 4. C<DROP SCHEMA> on the way out, even on failure
+
+=back
+
+Returns the introspected model hashref for the test schema, suitable as
+the C<target> of L<DBIO::DB2::Diff>.
 
 =cut
 
-sub upgrade {
+sub _build_target_model {
   my ($self) = @_;
-  my $diff = $self->diff;
-  return unless $diff->has_changes;
-  $self->apply($diff);
-  return $diff;
+  my $dbh         = $self->_dbh;
+  my $test_schema = '_dbio_test_' . $$;
+
+  $dbh->do("CREATE SCHEMA $test_schema");
+
+  my $model = eval {
+    my $ddl = $self->_ddl_class->install_ddl($self->schema);
+    for my $stmt ($self->_split_qualify_ddl($ddl, $test_schema)) {
+      $dbh->do($stmt);
+    }
+    return $self->_new_introspect($dbh, $test_schema)->model;
+  };
+
+  eval { $dbh->do("DROP SCHEMA $test_schema RESTRICT") };
+  die $@ if $@ and not $model;
+
+  return $model;
 }
 
-sub _dbh { $_[0]->schema->storage->dbh }
+# Internal: rewrite CREATE/DROP TABLE/INDEX statements emitted by
+# DBIO::DB2::DDL so they target $schema instead of the live one. The
+# regex pass is conservative -- DBIO::DB2::DDL emits a known shape --
+# so we trade a small fragility for not duplicating DDL rendering.
+sub _split_qualify_ddl {
+  my ($self, $ddl, $test_schema) = @_;
+  require DBIO::SQL::Util;
+  my @stmts = DBIO::SQL::Util::_split_statements($ddl);
+  for my $stmt (@stmts) {
+    next if $stmt =~ /^\s*--/;
+    $stmt =~ s/\bCREATE TABLE (\w+)/CREATE TABLE $test_schema.$1/g;
+    $stmt =~ s/\bDROP TABLE (\w+)/DROP TABLE $test_schema.$1/g;
+    $stmt =~ s/\bCREATE INDEX (\w+) ON (\w+)/CREATE INDEX $test_schema.$1 ON $test_schema.$2/g;
+    $stmt =~ s/\bDROP INDEX (\w+)/DROP INDEX $test_schema.$1/g;
+  }
+  return @stmts;
+}
 
 =seealso
 
@@ -199,7 +149,7 @@ sub _dbh { $_[0]->schema->storage->dbh }
 
 =item * L<DBIO::DB2::Diff> - compares two introspected models
 
-=item * L<DBIO::SQLite::Deploy> - sibling implementation
+=item * L<DBIO::Deploy::Base> - shared install/apply/upgrade orchestration
 
 =back
 
