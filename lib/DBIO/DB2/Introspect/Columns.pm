@@ -19,7 +19,9 @@ Given the tables hashref from L<DBIO::DB2::Introspect::Tables>,
 returns a hashref keyed by table name. Each value is an arrayref of
 column hashrefs in C<COLNO> order with keys:
 C<column_name>, C<data_type>, C<not_null>, C<default_value>,
-C<is_pk>, C<pk_position>, C<size>.
+C<is_pk>, C<pk_position>, C<size>. C<is_auto_increment> is set (to 1) only
+for C<GENERATED ... AS IDENTITY> columns, matching the canonical model shape
+consumed by L<DBIO::Introspect::Base/table_columns_info>.
 
 =cut
 
@@ -30,7 +32,7 @@ sub fetch {
   # Pull all columns for the schema in one go.
   my $col_sth = $dbh->prepare(q{
     SELECT colname, tabname, colno, typename, nullable, default,
-           length, scale
+           length, scale, identity
     FROM syscat.columns
     WHERE tabschema = ?
     ORDER BY tabname, colno
@@ -42,7 +44,7 @@ sub fetch {
     my $type = $row->{typename};
     my $size = $row->{length};
     $size .= ",$row->{scale}" if defined $row->{scale} && $row->{scale} > 0;
-    push @{ $columns{ $row->{tabname} } }, {
+    my %col = (
       column_name   => $row->{colname},
       data_type     => $type,
       not_null      => (lc($row->{nullable} // 'Y') eq 'N') ? 1 : 0,
@@ -50,7 +52,10 @@ sub fetch {
       is_pk         => 0,
       pk_position   => 0,
       size          => $size // undef,
-    };
+    );
+    # GENERATED ... AS IDENTITY -> syscat.columns.identity = 'Y'
+    $col{is_auto_increment} = 1 if lc($row->{identity} // 'N') eq 'y';
+    push @{ $columns{ $row->{tabname} } }, \%col;
   }
 
   # Primary-key membership.
