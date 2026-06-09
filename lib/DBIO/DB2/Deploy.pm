@@ -87,7 +87,7 @@ tablespace, introspects that, and returns a L<DBIO::DB2::Diff> object.
 sub diff {
   my ($self) = @_;
 
-  my $source_model = DBIO::DB2::Introspect->new(dbh => $self->_dbh)->model;
+  my $source_model = $self->_new_introspect($self->_dbh)->model;
 
   # For DB2 we deploy to a temporary schema to compare against
   # We use the same DB but into a test schema
@@ -126,8 +126,26 @@ sub _introspect_test_schema {
   }
 
   # Now introspect the test schema
-  my $intro = DBIO::DB2::Introspect->new(dbh => $dbh, schema => $test_schema);
-  return $intro->model;
+  return $self->_new_introspect($dbh, $test_schema)->model;
+}
+
+=method _new_introspect
+
+    my $intro = $self->_new_introspect($dbh);
+    my $intro = $self->_new_introspect($dbh, $schema);
+
+Factory for the introspector. Override in a subclass to use a custom
+L<DBIO::DB2::Introspect> subclass. The optional C<$schema> selects the DB2
+schema to introspect (defaults to the introspector's own default).
+
+=cut
+
+sub _new_introspect {
+  my ($self, $dbh, $schema) = @_;
+  return DBIO::DB2::Introspect->new(
+    dbh => $dbh,
+    (defined $schema ? (schema => $schema) : ()),
+  );
 }
 
 =method apply
