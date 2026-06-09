@@ -1,0 +1,34 @@
+---
+class: standard
+completed: 2026-06-09
+created: 2026-06-09T15:39:41Z
+id: 8
+priority: medium
+status: done
+tags:
+- core-adoption
+- from:dbio
+title: 'Adopt core Diff::Op / Diff::Compare / Introspect defaults / Deploy::Base (from
+  dbio core #12-16)'
+updated: 2026-06-09T15:39:41Z
+---
+
+Origin: dbio core karr #12-16 (Diff::Op, Diff::Compare, Introspect::Base contract defaults, Deploy::Base), landed in dbio core 2026-06-09 and installed to local perl5. Namespace DBIO::DB2. Verify against installed core first.
+
+== SEAM A: Diff::Op == adopt-partially
+- Diff/{Table,Column,Index}.pm (new/accessors Table:18-24, Column:34-40, Index:17-22): `use base 'DBIO::Diff::Op'` + mk_diff_accessors; optionally summary_prefix. KEEP diff() + as_sql() (_quote_ident, _db2_column_type, FETCH FIRST n ROWS). No FK diff class yet.
+
+== SEAM B: Diff::Compare == adopt-fully
+- Diff/Column.pm: delete _norm_type (103-109); inline checks (72-76) -> is_same_column. Diff/Index.pm:50-53 -> is_same_index. Add `use DBIO::Diff::Compare`.
+
+== SEAM C: Introspect contract == delete 6, KEEP table_fk_info
+- DELETE table_keys/columns/columns_info/pk_info/uniq_info/is_view (Introspect.pm 72-182 minus fk) — bare keys, canonical shape, identical to defaults.
+- KEEP table_fk_info (154-172): wraps fk_id into _constraint_name + nested local/remote structure. Either keep override OR (cleaner) reshape Introspect/ForeignKeys.pm to emit canonical from_columns/to_table/to_columns and then delete the override too.
+
+== SEAM D: Deploy::Base == adopt Base + custom _build_target_model (temp SCHEMA, NOT temp DB)
+- DB2 deploys into a temporary SCHEMA in the same DB (not CREATE DATABASE). Do NOT use TempDatabase. `use base 'DBIO::Deploy::Base'`; add _ddl_class/_introspect_class/_diff_class; move the temp-schema create/deploy(regex-rewrite-prefix)/introspect/drop (87-130) into _build_target_model. Delete install/apply/upgrade/diff/new/_dbh. KEEP the schema-prefix rewriting (DB2 DDL isn't auto-qualified).
+
+== SEAM E: FK grouping == adopt (with multi-step resolution kept)
+- Introspect/ForeignKeys.pm:51-66 hand-rolls %by_constraint (key table\0constraint). Adopt _aggregate_by_ordered for the grouping; KEEP the multi-step parent-PK-column resolution (88-108) which is DB2-specific.
+
+Existing tickets: #1 (closed), #7 backlog "Introspect: capture GENERATED AS IDENTITY for auto-increment fidelity" — RELATED to Seam C table_columns_info (is_auto_increment); coordinate so the contract-method deletion doesn't regress #7's intent. No duplicate of #7.
