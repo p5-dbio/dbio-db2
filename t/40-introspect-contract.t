@@ -27,7 +27,7 @@ my $MODEL = {
   },
   columns => {
     artist => [
-      { column_name => 'artistid', data_type => 'INTEGER', not_null => 1, default_value => undef, is_pk => 1, pk_position => 1, size => 10 },
+      { column_name => 'artistid', data_type => 'INTEGER', not_null => 1, default_value => undef, is_pk => 1, pk_position => 1, size => 10, is_auto_increment => 1 },
       { column_name => 'name',     data_type => 'VARCHAR', not_null => 0, default_value => undef, is_pk => 0, pk_position => 0, size => 255 },
       { column_name => 'rank',     data_type => 'INTEGER', not_null => 0, default_value => '13',  is_pk => 0, pk_position => 0, size => 10 },
     ],
@@ -48,9 +48,9 @@ my $MODEL = {
   },
   indexes => {
     artist => {
-      PK_ARTIST       => { index_name => 'PK_ARTIST',       is_unique => 1, columns => ['artistid'] },
-      U_ARTIST_NAME   => { index_name => 'U_ARTIST_NAME',   is_unique => 1, columns => ['name'] },
-      IDX_ARTIST_RANK => { index_name => 'IDX_ARTIST_RANK', is_unique => 0, columns => ['rank'] },
+      PK_ARTIST       => { index_name => 'PK_ARTIST',       is_unique => 1, origin => 'pk',   columns => ['artistid'] },
+      U_ARTIST_NAME   => { index_name => 'U_ARTIST_NAME',   is_unique => 1, origin => undef,  columns => ['name'] },
+      IDX_ARTIST_RANK => { index_name => 'IDX_ARTIST_RANK', is_unique => 0, origin => undef,  columns => ['rank'] },
     },
   },
   foreign_keys => {
@@ -81,12 +81,13 @@ is_deeply $intro->table_columns('artist'), [qw/artistid name rank/],
 is_deeply $intro->table_columns('nonesuch'), [],
   'table_columns on unknown table is empty';
 
-# --- table_columns_info ---
+# --- table_columns_info (canonical shape from DBIO::Introspect::Base default:
+#     default_value always present, size when defined, is_auto_increment when set) ---
 is_deeply $intro->table_columns_info('artist'), {
-  artistid => { data_type => 'INTEGER', is_nullable => 0, size => 10 },
-  name     => { data_type => 'VARCHAR', is_nullable => 1, size => 255 },
-  rank     => { data_type => 'INTEGER', is_nullable => 1, size => 10, default_value => '13' },
-}, 'table_columns_info: nullability, size, default (undef default omitted)';
+  artistid => { data_type => 'INTEGER', is_nullable => 0, default_value => undef, size => 10, is_auto_increment => 1 },
+  name     => { data_type => 'VARCHAR', is_nullable => 1, default_value => undef, size => 255 },
+  rank     => { data_type => 'INTEGER', is_nullable => 1, default_value => '13',  size => 10 },
+}, 'table_columns_info: nullability, size, default, is_auto_increment';
 
 # --- table_pk_info ---
 is_deeply $intro->table_pk_info('artist'), ['artistid'], 'single-column PK';

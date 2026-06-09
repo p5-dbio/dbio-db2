@@ -60,92 +60,17 @@ sub _build_model {
 
 =head1 NORMALIZED CONTRACT
 
-The methods below implement the L<DBIO::Introspect::Base> contract used by
-L<DBIO::Generate> as a high-fidelity source. They are thin reads of the native
-model built by C<_build_model> -- no extra database round-trips. Table keys are
-the bare DB2 table names (the keys of C<< model->{tables} >>).
+The L<DBIO::Introspect::Base> contract used by L<DBIO::Generate> is satisfied
+by the base-class defaults: the native model built by C<_build_model> already
+uses the canonical shape (bare table-name keys; C<columns> with
+C<column_name>/C<data_type>/C<size>/C<not_null>/C<default_value>/C<is_pk>/
+C<pk_position>/C<is_auto_increment>; C<indexes> with C<origin> marking the PK
+index; C<tables> with C<kind>). So C<table_keys>, C<table_columns>,
+C<table_columns_info>, C<table_pk_info>, C<table_uniq_info> and C<table_is_view>
+are inherited unchanged.
 
-=method table_keys
-
-=cut
-
-sub table_keys {
-  my ($self) = @_;
-  return [ sort keys %{ $self->model->{tables} || {} } ];
-}
-
-=method table_columns
-
-=cut
-
-sub table_columns {
-  my ($self, $table_key) = @_;
-  # model columns are fetched ORDER BY colno, so array order is column order
-  return [ map { $_->{column_name} } @{ $self->model->{columns}{$table_key} || [] } ];
-}
-
-=method table_columns_info
-
-=cut
-
-sub table_columns_info {
-  my ($self, $table_key) = @_;
-  my %info;
-
-  for my $col (@{ $self->model->{columns}{$table_key} || [] }) {
-    my $name  = $col->{column_name};
-    my $entry = {
-      data_type   => $col->{data_type},
-      is_nullable => $col->{not_null} ? 0 : 1,
-    };
-    $entry->{size} = $col->{size} if defined $col->{size};
-    $entry->{default_value} = $col->{default_value}
-      if defined $col->{default_value};
-    $info{$name} = $entry;
-  }
-
-  return \%info;
-}
-
-=method table_pk_info
-
-=cut
-
-sub table_pk_info {
-  my ($self, $table_key) = @_;
-  return [
-    map  { $_->{column_name} }
-    sort { $a->{pk_position} <=> $b->{pk_position} }
-    grep { $_->{is_pk} }
-    @{ $self->model->{columns}{$table_key} || [] }
-  ];
-}
-
-=method table_uniq_info
-
-Unique constraint-backed indexes, excluding the one that backs the primary key
-(identified by matching the PK column set).
-
-=cut
-
-sub table_uniq_info {
-  my ($self, $table_key) = @_;
-
-  my $pk_key  = join "\0", @{ $self->table_pk_info($table_key) };
-  my $indexes = $self->model->{indexes}{$table_key} || {};
-  my @uniqs;
-
-  for my $name (sort keys %$indexes) {
-    my $index = $indexes->{$name};
-    next unless $index->{is_unique};
-    my @cols = @{ $index->{columns} || [] };
-    next unless @cols;
-    next if join("\0", @cols) eq $pk_key;   # this is the PK index, not a uniq
-    push @uniqs, [ $name => [ @cols ] ];
-  }
-
-  return \@uniqs;
-}
+Only C<table_fk_info> is overridden: DB2 carries the constraint name and the
+referenced schema, which the generic default drops.
 
 =method table_fk_info
 
