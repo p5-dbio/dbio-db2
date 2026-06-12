@@ -5,7 +5,7 @@ allowed-tools: Read, Bash, Glob, Grep
 briefing:
   skills:
     - dbio-perl-release
-    - dbio-perl-core
+    - dbio-perl-syntax
     - karr
 ---
 

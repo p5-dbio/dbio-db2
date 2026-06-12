@@ -98,51 +98,42 @@ my $schema = MyApp::Schema->connect($broker);
 
 All brokers must implement:
 
+A broker is a **CredentialSource**: one backend identity, one set of credentials. It does NOT route and does NOT own a host list — routing + topology belong to `DBIO::Replicated`. See `CONTEXT.md`.
+
 | Method | Returns | Purpose |
 |--------|---------|---------|
-| `connect_info_for($mode)` | HASHREF | `{host, port, dbname, user, password, dbi_attrs}` |
-| `connect_info_for_storage($storage, $mode)` | HASHREF | Storage-aware version |
+| `connect_info_for` | HASHREF | `{host, port, dbname, user, password, dbi_attrs}` |
+| `connect_info_for_storage($storage)` | HASHREF | Storage-aware version |
 | `needs_refresh` | Bool | True if credentials need rotation |
 | `refresh` | - | Perform credential rotation |
-| `has_read_write_routing` | Bool | True if routes reads/writes differently |
 | `has_rotating_credentials` | Bool | True if credentials rotate |
-| `is_transaction_safe` | Bool | False if routing or rotating (default) |
+| `is_transaction_safe` | Bool | False if rotating (default) |
+| `for_host($host)` | broker view | One credential, pinned to one host (HostBound) |
+
+The trailing `$mode` ('read'/'write') arg is **vestigial** — accepted for back-compat, ignored. Routing decides read vs write, not the broker.
 
 ### Implemented Brokers
 
 | Broker | File | Use Case |
 |--------|------|----------|
 | `DBIO::AccessBroker::Static` | Static.pm | Single DSN, transaction-safe |
-| `DBIO::AccessBroker::ReadWrite` | ReadWrite.pm | Read replica pool, round-robin |
 | `DBIO::AccessBroker::Vault` | Vault.pm | TTL-based credential rotation |
-| `DBIO::AccessBroker::Credentials` | Credentials.pm | Role-based routing, CredentialsProvider |
+| `DBIO::AccessBroker::HostBound` | HostBound.pm | One credential pinned to one host (via `for_host`) |
 
 ### Storage Integration
 
 Storage detects broker via `_is_access_broker_connect_info([$broker])` → true if single blessed element. Then:
 
-1. `set_access_broker($broker, 'write')` — attaches broker to storage
-2. `_current_dbi_connect_info($mode)` → `current_access_broker_connect_info($mode)`
-3. `current_connect_info_for_storage($storage, $mode)` → `connect_info_for($mode)` (or storage-aware variant)
+1. `set_access_broker($broker)` — attaches broker to storage
+2. `_current_dbi_connect_info` → `current_access_broker_connect_info`
+3. `current_connect_info_for_storage($storage)` → `connect_info_for` (or storage-aware variant)
 4. Broker returns HASHREF → Storage normalizes to internal format
 
-### Credential Data Object
-
-`DBIO::AccessBroker::Credential` holds a single credential set:
-
-```perl
-my $cred = DBIO::AccessBroker::Credential->new(
-  host     => 'localhost',
-  dbname   => 'myapp',
-  user     => 'myapp',
-  password => 'secret',
-  role     => 'write',  # default
-);
-$cred->as_hashref;  # {host, port, dbname, user, password, role}
-```
+`DBIO::Replicated` passes a broker (or a `for_host` view) through the master/replicant connect paths untouched — the per-backend `Storage::DBI` consumes it. The guard predicate is `DBIO::Util::is_access_broker($x)`.
 
 ## OOP
 
-- Core: `Class::Accessor::Grouped` + `Class::C3::Componentised`
+- Core: `Class::Accessor::Grouped` + `Class::C3::Componentised` → [[dbio-perl-class-patterns]]
+- Pure-Perl style baseline → [[dbio-perl-syntax]]
 - Drivers: Moo (PostgreSQL) or Moose (Replicated) — match existing driver
-- `DBIO::Moo`/`DBIO::Moose` = optional bridges (`suggests`). See dbio-moo/dbio-moose skills for FOREIGNBUILDARGS, lazy rules, Cake/Candy combos, `make_immutable`
+- `DBIO::Moo`/`DBIO::Moose` = optional bridges (`suggests`), FOREIGNBUILDARGS + lazy rules → [[dbio-moo-moose]]

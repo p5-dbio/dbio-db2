@@ -2,7 +2,7 @@
 
 ## Perl Rules
 
-**MANDATORY: load the `dbio-perl-core` skill before editing any Perl code.** DBIO project conventions.
+**MANDATORY: load the `dbio-perl-syntax` skill before editing any Perl code.** DBIO project conventions.
 
 ## Namespace
 

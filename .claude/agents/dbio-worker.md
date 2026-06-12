@@ -9,7 +9,7 @@ briefing:
     - dbio-db2
     - dbio-driver-development
     - dbio-perl-class-patterns
-    - dbio-perl-core
+    - dbio-perl-syntax
     - dbio-perl-release
     - karr
 ---
